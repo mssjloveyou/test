@@ -68,7 +68,7 @@ public class JSLTest {
         ObjectMapper mapper = new ObjectMapper();
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         String url = WebConfig.HISTORY_DATA.replace(":code",codeBuilder.toString())
-                .replace(":start","20200925").replace(":end","20201010");
+                .replace(":start","20180104").replace(":end","20210809");
         System.out.println(url);
         String value = HttpUtil.get(url);
         if(value.length()<10){

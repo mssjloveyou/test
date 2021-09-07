@@ -1,6 +1,7 @@
 package com.example.service;
 
 import com.example.dao.StockCodeDao;
+import com.example.dao.StockInfoDao;
 import com.example.entity.StockCode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,8 @@ public class StockCodeService {
 
     @Autowired
     private StockCodeDao stockCodeDao;
+    @Autowired
+    private StockInfoDao infoDao;
 
     public void save(StockCode info){
         stockCodeDao.save(info);
@@ -24,6 +27,6 @@ public class StockCodeService {
 
 
     public List<StockCode> getValuableCode() {
-        return stockCodeDao.getValuableCode();
+        return stockCodeDao.getValuableCode(infoDao.getNewestData().get(0).getCreateDate());
     }
 }
