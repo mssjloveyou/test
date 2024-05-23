@@ -21,6 +21,8 @@ import java.math.BigDecimal;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @RestController
 public class StockController {
@@ -71,27 +73,50 @@ public class StockController {
         for (StockCode code : list) {
             codes.add(code.getCode());
         }
-        String requestCodes = String.join(",", codes);
+        Map<Integer,List<String>> loopMaps = new HashMap<>();
+        if(codes.size() > 1000){
+            int groupSize = codes.size()/1000+1;
 
-        String obj = HttpUtil.get(WebConfig.CURRENT_PRICE.replace(":code", requestCodes));
-        for (String child : obj.split(";")) {
-            if (child.split(",").length < 30) {
-                continue;
+            loopMaps =
+                    IntStream.range(0, (int) Math.ceil((double) codes.size() / groupSize))
+                            .boxed()
+                            .collect(Collectors.toMap(
+                                    i -> i, // Key为分组的序号
+                                    i -> codes.stream()
+                                            .skip(i * groupSize)
+                                            .limit(groupSize)
+                                            .collect(Collectors.toList()) // Value为分组后的子列表
+                            ));
+
+
+        }else{
+            loopMaps.put(1, codes);
+        }
+
+        for(int key : loopMaps.keySet()){
+            String requestCodes = String.join(",", loopMaps.get(key));
+            String obj = HttpUtil.get(WebConfig.CURRENT_PRICE.replace(":code", requestCodes));
+            List<StockInfo> transitBeans = new LinkedList<>();
+            for (String child : obj.split(";")) {
+                if (child.split(",").length < 30) {
+                    continue;
+                }
+                System.out.println(child);
+                String value = child.substring(child.indexOf("str_") + 4);
+                String name = value.substring(0, value.indexOf("="));
+                String[] childrens = value.split(",");
+                StockInfo info = new StockInfo();
+                info.setStockId(name);
+                info.setOpenPrice(Double.valueOf(childrens[1]));
+                info.setClosePrice(Double.valueOf(childrens[3]));
+                info.setDealHands(Double.valueOf(childrens[8]) / 100);
+                info.setDealMoney(Double.valueOf(childrens[9]) / 10000);
+                info.setCreateDate(format.parse(childrens[30]));
+                if (newestData.get(info.getStockId()) == null || newestData.get(info.getStockId()).compareTo(info.getCreateDate()) != 0) {
+                    transitBeans.add(info);
+                }
             }
-            System.out.println(child);
-            String value = child.substring(child.indexOf("str_") + 4);
-            String name = value.substring(0, value.indexOf("="));
-            String[] childrens = value.split(",");
-            StockInfo info = new StockInfo();
-            info.setStockId(name);
-            info.setOpenPrice(Double.valueOf(childrens[1]));
-            info.setClosePrice(Double.valueOf(childrens[3]));
-            info.setDealHands(Double.valueOf(childrens[8]) / 100);
-            info.setDealMoney(Double.valueOf(childrens[9]) / 10000);
-            info.setCreateDate(format.parse(childrens[30]));
-            if (newestData.get(info.getStockId()) == null || newestData.get(info.getStockId()).compareTo(info.getCreateDate()) != 0) {
-                infoService.save(info);
-            }
+            infoService.save(transitBeans);
         }
 
     }
@@ -121,36 +146,56 @@ public class StockController {
         for (StockInfo info : infoList) {
             openPriceMap.put(info.getStockId(), info.getClosePrice());
         }
-        String requestUrl = WebConfig.CURRENT_PRICE.replace(":code", String.join(",", requestCodes));
-        System.out.println(requestUrl);
-        String currentPrices = HttpUtil.get(requestUrl);
-        System.out.println(currentPrices);
-        List<Map> result = new ArrayList<>();
-        List<Map> todayResult = new ArrayList<>();
-        for (String child : currentPrices.split(";")) {
-            if (child.split(",").length < 30) {
-                continue;
-            }
-            String value = child.substring(child.indexOf("str_") + 4);
-            String name = value.substring(0, value.indexOf("="));
-            String[] childrens = value.split(",");
-            Double currentPrice = Double.valueOf(childrens[3]);
-            Double todayOpenPrice = Double.valueOf(childrens[2]);
-            Double openPrice = openPriceMap.get(name);
-            if (openPrice != null && currentPrice != null && todayOpenPrice != null) {
-                Map<String, Object> map = new HashMap<>();
-                map.put("code", name);
-                map.put("name", nameMap.get(name));
-                map.put("currentPrice", getDoubleValue(currentPrice));
-                map.put("fluctuate", getDoubleValue((currentPrice - openPrice) / openPrice * 100));
-                map.put("todayFluctuate", getDoubleValue((currentPrice - todayOpenPrice) / todayOpenPrice * 100));
-                result.add(map);
-                todayResult.add(map);
-            }
+
+        Map<Integer,List<String>> loopMaps = new HashMap<>();
+        if(requestCodes.size() > 1000){
+            int groupSize = requestCodes.size()/1000+1;
+
+            loopMaps =
+                    IntStream.range(0, (int) Math.ceil((double) requestCodes.size() / groupSize))
+                            .boxed()
+                            .collect(Collectors.toMap(
+                                    i -> i, // Key为分组的序号
+                                    i -> requestCodes.stream()
+                                            .skip(i * groupSize)
+                                            .limit(groupSize)
+                                            .collect(Collectors.toList()) // Value为分组后的子列表
+                            ));
+
+
+        }else{
+            loopMaps.put(1, requestCodes);
         }
 
-        System.out.println(result.size());
-        System.out.println(todayResult.size());
+        List<Map> result = new ArrayList<>();
+        List<Map> todayResult = new ArrayList<>();
+        for(int key : loopMaps.keySet()){
+            String requestUrl = WebConfig.CURRENT_PRICE.replace(":code", String.join(",", loopMaps.get(key)));
+            System.out.println(requestUrl);
+            String currentPrices = HttpUtil.get(requestUrl);
+            System.out.println(currentPrices);
+            for (String child : currentPrices.split(";")) {
+                if (child.split(",").length < 30) {
+                    continue;
+                }
+                String value = child.substring(child.indexOf("str_") + 4);
+                String name = value.substring(0, value.indexOf("="));
+                String[] childrens = value.split(",");
+                Double currentPrice = Double.valueOf(childrens[3]);
+                Double todayOpenPrice = Double.valueOf(childrens[2]);
+                Double openPrice = openPriceMap.get(name);
+                if (openPrice != null && currentPrice != null && todayOpenPrice != null) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("code", name);
+                    map.put("name", nameMap.get(name));
+                    map.put("currentPrice", getDoubleValue(currentPrice));
+                    map.put("fluctuate", getDoubleValue((currentPrice - openPrice) / openPrice * 100));
+                    map.put("todayFluctuate", getDoubleValue((currentPrice - todayOpenPrice) / todayOpenPrice * 100));
+                    result.add(map);
+                    todayResult.add(map);
+                }
+            }
+        }
 
         Collections.sort(result, new Comparator<Map>() {
             @Override

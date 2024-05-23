@@ -18,6 +18,10 @@ public class StockInfoService {
         stockInfoDao.save(info);
     }
 
+    public void save(List<StockInfo> list){
+        stockInfoDao.saveAll(list);
+    }
+
     public List<StockInfo> getNewestData(){
         return stockInfoDao.getNewestData();
     }

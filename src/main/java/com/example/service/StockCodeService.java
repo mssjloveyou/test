@@ -29,4 +29,5 @@ public class StockCodeService {
     public List<StockCode> getValuableCode() {
         return stockCodeDao.getValuableCode(infoDao.getNewestData().get(0).getCreateDate());
     }
+
 }
