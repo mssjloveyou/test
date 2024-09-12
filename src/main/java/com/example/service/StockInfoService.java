@@ -31,4 +31,8 @@ public class StockInfoService {
 
         return stockInfoDao.getDataByDate(date);
     }
+
+    public void recommend() {
+        stockInfoDao.recommend();
+    }
 }

@@ -60,6 +60,14 @@ public class StockController {
         }
     }
 
+    @Scheduled(cron = "0 10 17 * * ?")
+    @GetMapping("/stock/recommend")
+    public void recommend(){
+
+        infoService.recommend();
+
+    }
+
     @GetMapping("/stock/update")
      @Scheduled(cron = "0 10 15 * * ?")
     public void updateInfo() throws ParseException {
