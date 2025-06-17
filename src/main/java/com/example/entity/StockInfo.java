@@ -31,6 +31,8 @@ public class StockInfo implements Serializable{
 
     @Column(name="CREATE_DATE")
     private Date createDate;
+    @Column(name="month")
+    private String month;
 
     public Integer getId() {
         return id;
@@ -86,5 +88,13 @@ public class StockInfo implements Serializable{
 
     public void setCreateDate(Date createDate) {
         this.createDate = createDate;
+    }
+
+    public String getMonth() {
+        return month;
+    }
+
+    public void setMonth(String month) {
+        this.month = month;
     }
 }

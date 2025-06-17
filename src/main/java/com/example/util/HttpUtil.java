@@ -6,6 +6,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class HttpUtil {
 
     private static RestTemplate template = new RestTemplate();;
@@ -17,6 +20,8 @@ public class HttpUtil {
         return template.exchange(url, HttpMethod.GET, entity, String.class).getBody();
 
     }
+
+
 
     private static HttpHeaders buildHeaders(String refer){
         HttpHeaders headers = new HttpHeaders();

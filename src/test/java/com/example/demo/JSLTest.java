@@ -6,18 +6,21 @@ import com.example.entity.StockInfo;
 import com.example.service.StockCodeService;
 import com.example.service.StockInfoService;
 import com.example.util.HttpUtil;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import org.springframework.util.CollectionUtils;
 import org.thymeleaf.util.StringUtils;
 
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 import static com.example.config.WebConfig.CURRENT_PRICE;
 import static com.example.config.WebConfig.SHSZ_COUNT;
@@ -30,6 +33,11 @@ public class JSLTest {
     private StockCodeService service;
     @Autowired
     private StockInfoService infoService;
+
+    /**
+     * 新增代码
+     * @throws IOException
+     */
     @org.junit.Test
     public void testJSL() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
@@ -55,15 +63,54 @@ public class JSLTest {
     }
 
     @org.junit.Test
+    public void testJSL2() {
+        try {
+            for (int i = 1; i < 30; i++) {
+                System.out.println(i);
+                String url = "https://www.jisilu.cn/data/new_stock/super/?___jsl=LST___t=" + new Date().getTime()+"&page="+i+"&pageSize=100";
+                String s = HttpUtil.get(url);
+
+                ObjectMapper objectMapper = new ObjectMapper();
+                HashMap hashMap = objectMapper.readValue(s.toString(), HashMap.class);
+                ArrayList<HashMap<String, HashMap>> arr = (ArrayList) hashMap.get("rows");
+
+                List<StockCode> list = service.findAll();
+                List<String> codes = new ArrayList<>();
+                for (StockCode tmpCode : list) {
+                    codes.add(tmpCode.getCode());
+                }
+                for (HashMap<String, HashMap> tmpMap : arr) {
+                    Map<String, Object> fundInfo = (Map<String, Object>) tmpMap.get("cell");
+                    StockCode code = new StockCode();
+                    code.setCode(fundInfo.get("stock_cd").toString().startsWith("51") ? "sh" + fundInfo.get("stock_cd").toString() : "sz" + fundInfo.get("stock_cd").toString());
+                    code.setName(fundInfo.get("stock_nm").toString());
+                    if (codes.indexOf(code.getCode()) < 0) {
+                        service.save(code);
+                    }
+                }
+            }
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }
+    }
+
+    @org.junit.Test
     public void testHistory() throws IOException, ParseException {
 
         List<StockCode> list = service.findAll();
-        StringBuilder codeBuilder = new StringBuilder();
-        int i=0;
         List<StockInfo> rs = new LinkedList<>();
         for(StockCode code : list){
             String str =code.getCode().replaceAll("sh","cn_").replaceAll("sz","cn_");
-            rs.addAll(saveStockInfo(str,code.getCode()));
+            try {
+                rs.addAll(saveStockInfo(str, code.getCode()));
+            }catch (NullPointerException ex){
+                System.out.println("ignore");
+            }
+            try {
+                TimeUnit.MILLISECONDS.sleep(500);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             if(rs.size() > 1000){
                 infoService.save(rs);
                 rs = new LinkedList<>();
@@ -72,25 +119,26 @@ public class JSLTest {
         if(rs.size() > 0){
             infoService.save(rs);
         }
-
-//
-
     }
 
     private Collection<? extends StockInfo> saveStockInfo(String codeBuilder, String code) throws com.fasterxml.jackson.core.JsonProcessingException, ParseException {
         ObjectMapper mapper = new ObjectMapper();
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+        SimpleDateFormat format2 = new SimpleDateFormat("yyyy-MM");
         String url = WebConfig.HISTORY_DATA.replace(":code",codeBuilder.toString())
-                .replace(":start","20240108").replace(":end","20240521");
+                .replace(":start","20250616").replace(":end","20250617");
         System.out.println(url);
         String value = HttpUtil.get(url);
-        if(value.length()<10){
+        if(value.length()<10 || value.contains("non-existent")){
             return null;
         }
         List<Map<String,Object>> resultList = mapper.readValue(value,List.class);
         List<StockInfo> rs = new LinkedList<>();
         for(Map<String,Object> tmp : resultList){
             List<List> values = (List<List>) tmp.get("hq");
+            if(CollectionUtils.isEmpty(values)){
+                continue;
+            }
             for(List child : values){
                 StockInfo info = new StockInfo();
                 info.setStockId(tmp.get("code").toString().replaceAll("cn_",""));
@@ -100,6 +148,7 @@ public class JSLTest {
                 info.setDealHands(Double.valueOf(child.get(7).toString()));
                 info.setDealMoney(Double.valueOf(child.get(8).toString()));
                 info.setCreateDate(format.parse(child.get(0).toString()));
+                info.setMonth(format2.format(info.getCreateDate()));
                 rs.add(info);
             }
 
@@ -110,6 +159,7 @@ public class JSLTest {
     @Test
     public void reviseCode(){
         List<StockCode> all = service.findAll();
+        System.out.println(all.size());
         all.forEach(c->{
             try{
                 if(StringUtils.isEmpty(c.getName())) {
@@ -134,9 +184,7 @@ public class JSLTest {
         });
     }
 
-    public static void main(String[] args) {
-        String url = "https://hq.sinajs.cn/etag.php?_=1716359610097&list=sh000001";
-        String s = HttpUtil.get(SHSZ_COUNT);
-        System.out.println(s);
+    public static void main(String[] args) throws JsonProcessingException {
+
     }
 }
