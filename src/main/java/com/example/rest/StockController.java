@@ -35,6 +35,7 @@ public class StockController {
     private StockConfigService configService;
 
     private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+    private SimpleDateFormat format2 = new SimpleDateFormat("yyyy-MM");
 
     @GetMapping("/stock/code/update")
     public void updateCode() throws JsonProcessingException {
@@ -120,6 +121,7 @@ public class StockController {
                 info.setDealHands(Double.valueOf(childrens[8]) / 100);
                 info.setDealMoney(Double.valueOf(childrens[9]) / 10000);
                 info.setCreateDate(format.parse(childrens[30]));
+                info.setMonth(format2.format(info.getCreateDate()));
                 if (newestData.get(info.getStockId()) == null || newestData.get(info.getStockId()).compareTo(info.getCreateDate()) != 0) {
                     transitBeans.add(info);
                 }

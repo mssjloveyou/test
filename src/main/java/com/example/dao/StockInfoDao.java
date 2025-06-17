@@ -15,7 +15,7 @@ public interface StockInfoDao extends JpaRepository<StockInfo,Long> {
     @Query("from StockInfo where createDate in (select max(createDate) from StockInfo)")
     List<StockInfo> getNewestData();
 
-    @Query("from StockInfo where createDate=?1 and stockId in (select code from StockCode where id>4543)")
+    @Query("from StockInfo where createDate=?1 and stockId in (select code from StockCode where name like '%ETF%')")
     List<StockInfo> getDataByDate( Date date);
 
     /**

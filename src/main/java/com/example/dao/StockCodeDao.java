@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface StockCodeDao extends JpaRepository<StockCode,Long> {
 
-    @Query("from StockCode where id>4543 and code in (select stockId from StockInfo where dealMoney>10000 and createDate =:date )")
+    @Query("from StockCode where name like '%ETF%' and code in (select stockId from StockInfo where dealMoney>10000 and createDate =:date )")
     List<StockCode> getValuableCode(@Param("date") Date date);
 
 
